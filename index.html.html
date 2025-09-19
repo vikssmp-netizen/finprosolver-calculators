@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VSSMP Interest Calculator — FD & RD</title>
+  <style>
+    :root{
+      --bg:#0b1020;              /* fascia background (unchanged) */
+      --card:#0f1530;            /* card */
+      --accent1:#22c55e;         /* green (compound/positive) */
+      --accent2:#ef4444;         /* red (simple/contrast) */
+      --text:#e7ebff;
+      --muted:#9aa3b2;
+      --ring: 0 10px 30px rgba(239,68,68,.25); /* red glow */
+      --grad: linear-gradient(135deg,var(--accent2),var(--accent1)); /* red -> green */
+      --radius: 22px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100dvh;background:
+      radial-gradient(1200px 600px at 10% -10%,rgba(239,68,68,.2),transparent 60%),
+      radial-gradient(1000px 700px at 100% 110%,rgba(34,197,94,.18),transparent 60%),
+      var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; color:var(--text); display:grid; place-items:center; padding:24px}
+
+    .wrap{width:min(1050px,96vw)}
+
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08); border-radius:var(--radius); padding:28px; box-shadow:var(--ring); backdrop-filter: blur(10px)}
+
+    .title{font-weight:800; font-size:clamp(22px,3.2vw,36px); letter-spacing:.2px; margin:0 0 18px}
+
+    .grid{display:grid; grid-template-columns: 1.2fr .9fr; gap:26px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+    .panel{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); border-radius:18px; padding:20px}
+
+    .row{display:grid; grid-template-columns: 1fr auto; gap:14px; align-items:center; margin:18px 0 8px}
+    .label{font-weight:650; color:#dce2ff; letter-spacing:.2px}
+
+    .tag{background:rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.35); color:#fff; padding:8px 12px; border-radius:12px; font-weight:700; min-width:140px; text-align:center}
+
+    .ctrl{display:grid; grid-template-columns: 1fr; gap:10px}
+
+    input[type=range]{-webkit-appearance:none; width:100%; height:14px; border-radius:999px; background:rgba(255,255,255,.12); outline:none; position:relative}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:26px; height:26px; background:var(--grad); border-radius:50%; box-shadow: 0 6px 20px rgba(239,68,68,.35); border:2px solid #fff}
+    input[type=range]::-moz-range-thumb{width:26px; height:26px; background:var(--grad); border-radius:50%; border:2px solid #fff}
+
+    .inline{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .inline input[type=number]{width:140px; background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.18); color:var(--text); padding:10px 12px; border-radius:12px; font-size:16px}
+    .inline input[type=number]:focus{outline:2px solid rgba(239,68,68,.6)}
+    .unit{font-weight:800; color:#b8c0d8}
+
+    .seg{display:inline-grid; grid-auto-flow:column; gap:8px; padding:6px; border-radius:14px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12)}
+    .seg input{display:none}
+    .seg label{padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:800; color:#cfd7ff}
+    .seg input:checked + label{background:var(--grad); color:#0b1020}
+
+    .select{appearance:none; background:var(--grad); border:1px solid rgba(255,255,255,.18); color:#0b1020; padding:10px 12px; border-radius:12px; font-weight:800}
+
+    .summary{display:grid; gap:10px; margin-top:10px}
+    .summary .item{display:flex; justify-content:space-between; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); padding:14px 16px; border-radius:14px}
+    .summary .name{color:var(--muted); font-weight:700}
+    .summary .val{font-weight:900}
+
+    .ring{
+      aspect-ratio:1/1; width:min(420px,84vw); margin-inline:auto; display:grid; place-items:center; background:radial-gradient(40% 40% at 50% 50%, rgba(255,255,255,.05), transparent 60%);
+      border-radius:20px; padding:20px; border:1px solid rgba(255,255,255,.06)
+    }
+    .legend{display:flex; gap:14px; justify-content:center; margin-top:14px}
+    .pill{display:inline-flex; align-items:center; gap:8px; font-weight:700}
+    .dot{width:14px; height:14px; border-radius:50%; display:inline-block}
+
+    .cta{display:flex; gap:12px; justify-content:flex-end; margin-top:12px}
+    .btn{appearance:none; padding:10px 14px; border-radius:12px; font-weight:800; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; cursor:pointer}
+    .btn.primary{background:var(--grad); border:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1 class="title">VSSMP Interest Calculator</h1>
+      <div class="grid">
+        <!-- Left: Controls (same fascia) -->
+        <div class="panel">
+          <!-- Currency -->
+          <div class="row" style="margin-top:0">
+            <div class="label">Currency</div>
+            <div class="tag" id="cTag">₹</div>
+          </div>
+          <div class="ctrl" style="margin-top:-6px">
+            <div class="inline">
+              <select id="currency" class="select" aria-label="Select currency">
+                <option value="INR">₹ – Indian Rupee</option>
+                <option value="USD">$ – US Dollar</option>
+                <option value="EUR">€ – Euro</option>
+                <option value="GBP">£ – British Pound</option>
+                <option value="JPY">¥ – Japanese Yen</option>
+                <option value="AUD">A$ – Australian Dollar</option>
+                <option value="CAD">C$ – Canadian Dollar</option>
+                <option value="NZD">NZ$ – New Zealand Dollar</option>
+                <option value="CHF">Fr – Swiss Franc</option>
+                <option value="SGD">S$ – Singapore Dollar</option>
+                <option value="HKD">HK$ – Hong Kong Dollar</option>
+                <option value="CNY">¥ – Chinese Yuan</option>
+                <option value="AED">د.إ – UAE Dirham</option>
+                <option value="SAR">ر.س – Saudi Riyal</option>
+                <option value="ZAR">R – South African Rand</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Mode -->
+          <div class="row">
+            <div class="label">Calculation Type</div>
+            <div class="tag" id="modeTag">Simple</div>
+          </div>
+          <div class="ctrl">
+            <div class="seg" role="tablist" aria-label="Select calculation type">
+              <input type="radio" id="modeSimple" name="mode" checked />
+              <label for="modeSimple" role="tab" aria-controls="simple">Simple</label>
+              <input type="radio" id="modeCompound" name="mode" />
+              <label for="modeCompound" role="tab" aria-controls="compound">Compound</label>
+              <input type="radio" id="modeRD" name="mode" />
+              <label for="modeRD" role="tab" aria-controls="rd">RD</label>
+            </div>
+          </div>
+
+          <!-- Principal / Monthly deposit -->
+          <div class="row">
+            <div class="label" id="amountLabel">Principal amount</div>
+            <div class="tag"><span class="unit" id="sym1">₹</span> <span id="pTag">100000</span></div>
+          </div>
+          <div class="ctrl">
+            <input id="pRange" type="range" min="1000" max="5000000" step="1000" value="100000"/>
+            <div class="inline">
+              <span class="unit" id="sym2">₹</span>
+              <input id="pInput" type="number" min="0" step="1000" value="100000"/>
+            </div>
+          </div>
+
+          <!-- Rate -->
+          <div class="row" style="margin-top:22px">
+            <div class="label">Rate of interest (p.a)</div>
+            <div class="tag"><span id="rTag">6</span>%</div>
+          </div>
+          <div class="ctrl">
+            <input id="rRange" type="range" min="0" max="24" step="0.1" value="6"/>
+            <div class="inline">
+              <input id="rInput" type="number" min="0" max="100" step="0.1" value="6"/>
+              <span class="unit">%</span>
+            </div>
+          </div>
+
+          <!-- Tenure: Years / Months / Days + slider -->
+          <div class="row" style="margin-top:22px">
+            <div class="label">Time period</div>
+            <div class="tag" id="tTag">5 Yr</div>
+          </div>
+          <div class="ctrl">
+            <div class="inline">
+              <input id="tYears" type="number" min="0" step="1" value="5" /> <span class="unit">Years</span>
+              <input id="tMonths" type="number" min="0" max="11" step="1" value="0" /> <span class="unit">Months</span>
+              <input id="tDays" type="number" min="0" max="30" step="1" value="0" /> <span class="unit">Days</span>
+            </div>
+            <div class="inline" style="gap:12px;margin-top:8px">
+              <input id="tSlider" type="range" min="0" max="50" step="0.01" value="5" style="flex:1"/>
+              <span id="tDisplay" class="unit">5 Yr</span>
+            </div>
+          </div>
+
+          <!-- Frequency (Compound & RD) -->
+          <div class="row" id="freqRow" style="display:none; margin-top:22px">
+            <div class="label">Compounding frequency</div>
+            <div class="tag" id="fTag">Yearly</div>
+          </div>
+          <div class="ctrl" id="freqCtrl" style="display:none">
+            <div class="inline">
+              <select id="freq" class="select" aria-label="Compounding frequency">
+                <option value="1">Yearly (p.a)</option>
+                <option value="2">Half-yearly</option>
+                <option value="4">Quarterly</option>
+                <option value="12" selected>Monthly</option>
+                <option value="365">Daily</option>
+              </select>
+              <small class="unit">(Compound & RD)</small>
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div class="summary" aria-live="polite">
+            <div class="item"><span class="name" id="pName">Principal amount</span><span class="val" id="pOut">₹1,00,000</span></div>
+            <div class="item"><span class="name">Total interest</span><span class="val" id="siOut">₹30,000</span></div>
+            <div class="item"><span class="name">Total amount</span><span class="val" id="taOut">₹1,30,000</span></div>
+          </div>
+          <div class="cta">
+            <button class="btn" id="resetBtn" title="Reset to defaults">Reset</button>
+            <button class="btn primary" id="copyBtn" title="Copy values as text">Copy Summary</button>
+          </div>
+        </div>
+
+        <!-- Right: Donut + Line Graph -->
+        <div class="panel">
+          <div class="ring">
+            <svg id="donut" viewBox="0 0 42 42" width="100%" height="100%" aria-label="Breakdown donut">
+              <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#ef4444"/>
+                  <stop offset="100%" stop-color="#22c55e"/>
+                </linearGradient>
+              </defs>
+              <circle r="15.915" cx="21" cy="21" fill="transparent" stroke="rgba(255,255,255,.08)" stroke-width="8"/>
+              <circle id="arcInterest" r="15.915" cx="21" cy="21" fill="transparent" stroke="url(#g1)" stroke-width="8" stroke-dasharray="0 100" stroke-linecap="round" transform="rotate(-90 21 21)"/>
+              <circle id="arcPrincipal" r="15.915" cx="21" cy="21" fill="transparent" stroke="rgba(255,255,255,.15)" stroke-width="8" stroke-dasharray="0 100" stroke-linecap="round" transform="rotate(-90 21 21)"/>
+              <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="4.4" fill="#e7ebff" font-weight="800" id="centerText">₹1.30L</text>
+            </svg>
+          </div>
+          <div class="legend">
+            <span class="pill"><span class="dot" style="background:#bfc6ff"></span> Principal</span>
+            <span class="pill"><span class="dot" style="background:linear-gradient(135deg,#ef4444,#22c55e)"></span> Interest</span>
+          </div>
+          <div class="barwrap" style="margin-top:12px">
+            <canvas id="line" width="520" height="180" aria-label="Simple vs Compound line"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ===== Currency symbols (no FX conversion) =====
+  const CURRENCIES = {INR:'₹',USD:'$',EUR:'€',GBP:'£',JPY:'¥',AUD:'A$',CAD:'C$',NZD:'NZ$',CHF:'Fr',SGD:'S$',HKD:'HK$',CNY:'¥',AED:'د.إ',SAR:'ر.س',ZAR:'R'};
+  let CUR = 'INR';
+
+  const numberIN = new Intl.NumberFormat('en-IN');
+  const moneyFmt = ()=> new Intl.NumberFormat('en-IN',{style:'currency',currency:CUR,maximumFractionDigits:0});
+  const shortMoney = (n)=>{
+    if (CUR==='INR'){
+      if (n>=1e7) return CURRENCIES[CUR] + (n/1e7).toFixed(2).replace(/\.00$/,'') + 'Cr';
+      if (n>=1e5) return CURRENCIES[CUR] + (n/1e5).toFixed(2).replace(/\.00$/,'') + 'L';
+    } else {
+      if (n>=1e9) return CURRENCIES[CUR] + (n/1e9).toFixed(2).replace(/\.00$/,'') + 'B';
+      if (n>=1e6) return CURRENCIES[CUR] + (n/1e6).toFixed(2).replace(/\.00$/,'') + 'M';
+      if (n>=1e3) return CURRENCIES[CUR] + (n/1e3).toFixed(2).replace(/\.00$/,'') + 'K';
+    }
+    return moneyFmt().format(n);
+  };
+
+  // ===== Elements =====
+  const els = {
+    currency: document.getElementById('currency'),
+    cTag: document.getElementById('cTag'),
+    sym1: document.getElementById('sym1'),
+    sym2: document.getElementById('sym2'),
+
+    modeSimple: document.getElementById('modeSimple'),
+    modeCompound: document.getElementById('modeCompound'),
+    modeRD: document.getElementById('modeRD'),
+    modeTag: document.getElementById('modeTag'),
+
+    amountLabel: document.getElementById('amountLabel'),
+
+    pRange: document.getElementById('pRange'),
+    pInput: document.getElementById('pInput'),
+    pTag: document.getElementById('pTag'),
+    rRange: document.getElementById('rRange'),
+    rInput: document.getElementById('rInput'),
+    rTag: document.getElementById('rTag'),
+
+    tYears: document.getElementById('tYears'),
+    tMonths: document.getElementById('tMonths'),
+    tDays: document.getElementById('tDays'),
+    tSlider: document.getElementById('tSlider'),
+    tDisplay: document.getElementById('tDisplay'),
+    tTag: document.getElementById('tTag'),
+
+    fRow: document.getElementById('freqRow'),
+    fCtrl: document.getElementById('freqCtrl'),
+    fSelect: document.getElementById('freq'),
+    fTag: document.getElementById('fTag'),
+
+    pOut: document.getElementById('pOut'),
+    siOut: document.getElementById('siOut'),
+    taOut: document.getElementById('taOut'),
+
+    arcI: document.getElementById('arcInterest'),
+    arcP: document.getElementById('arcPrincipal'),
+    centerText: document.getElementById('centerText'),
+
+    copyBtn: document.getElementById('copyBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+
+    line: document.getElementById('line'),
+  };
+
+  const getMode = ()=> els.modeRD.checked ? 'rd' : (els.modeCompound.checked ? 'compound' : 'simple');
+
+  // ===== Tenure helpers (Y/M/D <-> years slider) =====
+  function boxesToYears(){
+    const y = +els.tYears.value||0, m= +els.tMonths.value||0, d= +els.tDays.value||0;
+    return y + (m/12) + (d/365);
+  }
+  function yearsToBoxes(T){
+    let y = Math.floor(T);
+    let rem = T - y;
+    let m = Math.floor(rem*12 + 1e-9);
+    let d = Math.round((rem - m/12)*365);
+    if(d>=30){ m += Math.floor(d/30); d = d%30; }
+    if(m>=12){ y += Math.floor(m/12); m = m%12; }
+    els.tYears.value = y; els.tMonths.value = m; els.tDays.value = d;
+  }
+  function humanTenure(){
+    const Y=+els.tYears.value||0, M=+els.tMonths.value||0, D=+els.tDays.value||0;
+    const parts=[]; if(Y>0) parts.push(`${Y} Yr`); if(M>0) parts.push(`${M} Mo`); if(D>0) parts.push(`${D} Day`);
+    return parts.length? parts.join(' ') : '0 Day';
+  }
+
+  // ===== Calculations =====
+  function calc(){
+    const mode = getMode();
+    const P = +els.pInput.value || 0;            // FD/Simple principal OR RD monthly deposit
+    const R = (+els.rInput.value || 0) / 100;    // annual rate
+    const T = Math.max(0, boxesToYears());       // years
+
+    let A=0, I=0, principalDisplay=P;
+
+    if(mode==='simple'){
+      I = P * R * T;
+      A = P + I;
+    } else if(mode==='compound'){
+      const n = +(els.fSelect.value||1);
+      A = P * Math.pow(1 + R/n, n*T);
+      I = A - P;
+    } else { // RD (monthly deposit; compounding frequency selectable)
+      const n = +(els.fSelect.value||12); // compounding periods per year
+      const r_m = Math.pow(1 + R/n, n/12) - 1; // effective monthly rate from selected frequency
+      const m = Math.round(T * 12);            // total deposits
+      if(r_m === 0){ A = P * m; } else { A = P * ((Math.pow(1+r_m, m) - 1) / r_m) * (1 + r_m); }
+      principalDisplay = P * m;                // total contributed
+      I = A - principalDisplay;
+    }
+    return {mode,P,R,T,A,I,principalDisplay};
+  }
+
+  // ===== Render donut + line =====
+  function sync(){
+    const {mode,P,R,T,A,I,principalDisplay} = calc();
+
+    // Mode & labels
+    els.modeTag.textContent = mode==='simple' ? 'Simple' : (mode==='compound'?'Compound':'RD');
+    els.amountLabel.textContent = mode==='rd' ? 'Monthly deposit' : 'Principal amount';
+    document.getElementById('pName').textContent = mode==='rd' ? 'Total deposit' : 'Principal amount';
+
+    // Numbers
+    els.pTag.textContent = numberIN.format( mode==='rd' ? Math.round(principalDisplay) : Math.round(P));
+    els.rTag.textContent = (R*100).toFixed(1).replace(/\.0$/,'');
+    els.tTag.textContent = humanTenure();
+
+    els.pOut.textContent = moneyFmt().format(mode==='rd'? principalDisplay : P);
+    els.siOut.textContent = moneyFmt().format(I);
+    els.taOut.textContent = moneyFmt().format(A);
+
+    // Frequency visibility
+    const showFreq = (mode!=='simple');
+    els.fRow.style.display = showFreq ? 'grid' : 'none';
+    els.fCtrl.style.display = showFreq ? 'grid' : 'none';
+    if(showFreq){
+      const map = {1:'Yearly',2:'Half-yearly',4:'Quarterly',12:'Monthly',365:'Daily'};
+      els.fTag.textContent = map[els.fSelect.value] || 'Yearly';
+    }
+
+    // Donut segments
+    const total = principalDisplay + I || 1;
+    const percI = (I/total)*100;
+    const percP = 100 - percI;
+    els.arcI.setAttribute('stroke-dasharray', `${percI.toFixed(2)} ${100-percI}`);
+    els.arcP.setAttribute('stroke-dasharray', `${percP.toFixed(2)} ${100-percP}`);
+    els.centerText.textContent = shortMoney(A);
+
+    // Line chart data (red vs green)
+    drawLine(mode,P,R,T, +(els.fSelect.value||12));
+
+    // Sync UI controls visually
+    if(+els.pRange.value!==P) els.pRange.value=P;
+    if(+els.rRange.value!==(R*100)) els.rRange.value=(R*100);
+    const yrs = boxesToYears();
+    if(+els.tSlider.value!==yrs) els.tSlider.value=yrs;
+
+    // Currency symbols
+    els.cTag.textContent = CURRENCIES[CUR];
+    els.sym1.textContent = CURRENCIES[CUR];
+    els.sym2.textContent = CURRENCIES[CUR];
+  }
+
+  function drawLine(mode,P,R,T,n){
+    const ctx = els.line.getContext('2d');
+    const W = els.line.width, H = els.line.height;
+    ctx.clearRect(0,0,W,H);
+    const pad = {l:40,r:12,t:10,b:28};
+    const plotW = W - pad.l - pad.r, plotH = H - pad.t - pad.b;
+
+    const k = Math.max(2, Math.min(10, Math.ceil(T||1)));
+    const redVals=[], greenVals=[]; // red = simple/total deposit, green = compound/maturity
+
+    for(let i=0;i<=k;i++){
+      const t = Math.min(T, (T/k)*i);
+      if(mode==='rd'){
+        const m = Math.round(t*12);
+        const nSel = n; // comp periods per year
+        const r_m = Math.pow(1 + R/nSel, nSel/12) - 1;
+        const A_t = r_m===0 ? P*m : P * ((Math.pow(1+r_m, m) - 1) / r_m) * (1 + r_m);
+        const contrib = P*m;
+        redVals.push(contrib);   // total deposit
+        greenVals.push(A_t);     // maturity
+      } else {
+        const A_s = P + P*R*t;                  // simple
+        const A_c = P * Math.pow(1+R/n, n*t);   // compound
+        redVals.push(A_s);   // simple = red
+        greenVals.push(A_c); // compound = green
+      }
+    }
+
+    const yMin = Math.min(...redVals, ...greenVals);
+    const yMax = Math.max(...redVals, ...greenVals);
+    if(!isFinite(yMax) || yMax<=0){ return; }
+    const xAt = i=> pad.l + (i/k)*plotW;
+    const yAt = v=> pad.t + (1-(v-yMin)/(yMax-yMin||1))*plotH;
+
+    // grid
+    ctx.strokeStyle = 'rgba(231,235,255,0.15)'; ctx.setLineDash([4,6]); ctx.beginPath();
+    for(let i=0;i<=4;i++){ const y = pad.t + i*(plotH/4); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y);} ctx.stroke(); ctx.setLineDash([]);
+
+    // axes
+    ctx.strokeStyle = 'rgba(231,235,255,0.35)'; ctx.lineWidth = 1.2; ctx.beginPath();
+    ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,H-pad.b); ctx.lineTo(W-pad.r,H-pad.b); ctx.stroke();
+
+    // x labels
+    ctx.fillStyle = 'rgba(231,235,255,0.85)'; ctx.font='12px ui-sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+    for(let i=0;i<=k;i++){ ctx.fillText(String(i), xAt(i), H-pad.b+6); }
+
+    const poly = (vals,color)=>{ ctx.strokeStyle=color; ctx.lineWidth=2.2; ctx.beginPath(); ctx.moveTo(xAt(0), yAt(vals[0])); for(let i=1;i<=k;i++){ ctx.lineTo(xAt(i), yAt(vals[i])); } ctx.stroke(); for(let i=0;i<=k;i++){ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(xAt(i), yAt(vals[i]), 3, 0, Math.PI*2); ctx.fill(); } };
+    poly(redVals,'#ef4444');   // red line
+    poly(greenVals,'#22c55e'); // green line
+  }
+
+  // ===== Events =====
+  [['pRange','pInput'],['rRange','rInput']].forEach(([range,id])=>{
+    els[range].addEventListener('input', e=>{ els[id].value = e.target.value; sync();});
+    els[id].addEventListener('input', e=>{ els[range].value = e.target.value; sync();});
+  });
+
+  [els.tYears, els.tMonths, els.tDays].forEach(el=>{
+    el.addEventListener('input', ()=>{ // clamp months/days and sync slider
+      els.tMonths.value = Math.max(0, Math.min(11, +els.tMonths.value||0));
+      els.tDays.value = Math.max(0, Math.min(30, +els.tDays.value||0));
+      els.tSlider.value = boxesToYears();
+      els.tDisplay.textContent = humanTenure();
+      sync();
+    });
+  });
+  els.tSlider.addEventListener('input', ()=>{
+    yearsToBoxes(+els.tSlider.value||0);
+    els.tDisplay.textContent = humanTenure();
+    sync();
+  });
+
+  [els.modeSimple, els.modeCompound, els.modeRD].forEach(el=> el.addEventListener('change', sync));
+  els.fSelect.addEventListener('change', sync);
+  els.currency.addEventListener('change', ()=>{ CUR = els.currency.value; sync(); });
+
+  // Copy + Reset
+  els.copyBtn.addEventListener('click', async ()=>{
+    const {mode,P,R,T,A,I,principalDisplay} = calc();
+    const text = `Type: ${mode==='simple'?'Simple Interest':(mode==='compound'?'Compound (FD)':'Recurring Deposit (RD)')}`+
+      `\n${mode==='rd'?'Monthly deposit':'Principal'}: ${moneyFmt().format(mode==='rd'?P: P)}`+
+      `${mode==='rd'?`\nTotal deposit: ${moneyFmt().format(principalDisplay)}`:''}`+
+      `\nRate (p.a): ${(R*100).toFixed(2)}%`+
+      `\nTime: ${humanTenure()}`+
+      `${mode!=='simple'?`\nFrequency: ${els.fSelect.options[els.fSelect.selectedIndex].text}`:''}`+
+      `\nTotal Interest: ${moneyFmt().format(I)}`+
+      `\nTotal Amount: ${moneyFmt().format(A)}`;
+    try{ await navigator.clipboard.writeText(text); els.copyBtn.textContent='Copied!'; setTimeout(()=>els.copyBtn.textContent='Copy Summary',1400);}catch{alert(text)}
+  });
+
+  els.resetBtn.addEventListener('click', ()=>{
+    CUR='INR'; els.currency.value='INR';
+    els.modeSimple.checked = true; els.modeCompound.checked = false; els.modeRD.checked=false;
+    els.pInput.value = 100000; els.pRange.value=100000;
+    els.rInput.value = 6; els.rRange.value=6;
+    els.tYears.value=5; els.tMonths.value=0; els.tDays.value=0; els.tSlider.value=5; els.tDisplay.textContent='5 Yr';
+    els.fSelect.value = 12; // monthly default
+    sync();
+  });
+
+  // ===== Init =====
+  sync();
+</script>
+</body>
+</html>
